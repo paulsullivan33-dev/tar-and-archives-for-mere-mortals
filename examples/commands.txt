@@ -1,0 +1,45 @@
+Tar & Archives for Mere Mortals — the pocket card
+==================================================
+
+BUILD THE LAB
+  sh make-corpus.sh corpus            # the fixture tree every chapter uses
+
+CREATE
+  tar -cvf out.tar corpus             # pack a tree (relative path, top folder)
+  tar -czf out.tar.gz corpus          # + gzip   (-j bzip2, -J xz, --zstd zstd)
+  tar -cvf out.tar --exclude="*.tmp" corpus
+  tar -cvf out.tar --exclude="corpus/logs" corpus
+
+LIST FIRST — ALWAYS
+  tar -tf  file.tar.gz                # names only; changes nothing
+  tar -tvf file.tar.gz                # + modes, owners, sizes
+  unzip -l file.zip                   # the zip equivalent
+
+EXTRACT (into a fresh, empty directory)
+  mkdir unpack && tar -xf file.tar.gz -C unpack
+  unzip file.zip -d unpack
+  tar --no-same-owner -xf file.tar    # as root, when you don't need the owners
+  tar -xpf file.tar                   # exact modes (root: default; others: opt-in)
+
+GZIP ALONE
+  gzip -k file                        # keep the original
+  gzip -l file.gz                     # true size + ratio
+  gunzip -k file.gz                   # refuses if the target already exists
+  gzip -9 -k file                     # top of the dial, measured gain only
+
+PROVE IT
+  sha256sum file.tar.gz | tee file.tar.gz.sha256
+  sha256sum -c file.tar.gz.sha256
+  diff -r corpus elsewhere/corpus     # round trip: silent means identical
+
+STREAM
+  tar -cf - corpus | tar -xf - -C elsewhere
+  tar -cf - corpus | ssh user@otherbox "tar -xf - -C /backup"
+
+SPECIAL CASES
+  tar --sparse -cf out.tar sparsefile # store holes as holes
+  tar --numeric-owner -tvf file.tar   # raw uid/gid, not your machine's names
+
+SAFETY IN ONE LINE
+  List first, extract into an empty directory, and don't be root
+  for archives that aren't yours.
