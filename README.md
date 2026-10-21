@@ -91,3 +91,14 @@ the modes land exactly as captured — chapter 9 explains),
 and its sandbox resets ssh sessions, so tar-over-ssh is
 written as the local pipe's identical shape and marked
 **(documented)**. `criteria.md` keeps the full ledger.
+
+## Fixture rebuild safety
+
+The fixture builder creates a new target directory. It replaces an existing
+target only when that directory carries this guide's completed-build ownership
+marker (`.mere-mortals-fixture`). Existing unmarked directories, symlink targets,
+protected home/current/script directories and overlapping builds are refused.
+Older fixture trees have no marker: use a fresh directory name and inspect the
+old tree manually. Do not add a marker to an unrelated directory. A failed or
+interrupted build may leave an unmarked tree or stale `.build-lock` directory;
+inspect it before cleaning up.
