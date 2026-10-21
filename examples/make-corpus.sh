@@ -19,8 +19,34 @@
 
 set -eu
 dir=${1:-corpus}
-
-rm -rf "$dir"
+fail() { printf '%s\n' "refusing fixture target: $*" >&2; exit 1; }
+# Resolve the existing parent, never follow a target symlink, and require an
+# ownership marker before replacing any existing directory.
+case $dir in ''|/|.|..|*/.|*/..) fail "$dir" ;; esac
+dir=${dir%/}
+[ ! -L "$dir" ] || fail "symlink $dir"
+parent=$(cd -- "$(dirname -- "$dir")" && pwd -P) || exit 1
+name=$(basename -- "$dir")
+case $name in ''|.|..) fail "$dir" ;; esac
+dir="$parent/$name"
+script_dir=$(cd -- "$(dirname -- "$0")" && pwd -P) || exit 1
+cwd=$(pwd -P)
+home=$(cd -- "$HOME" && pwd -P) || exit 1
+for protected in "$cwd" "$script_dir" "$home"; do
+  case "$protected/" in "$dir/"*) fail "protected directory $dir" ;; esac
+done
+marker="$dir/.mere-mortals-fixture"
+if [ -e "$dir" ]; then
+  [ -d "$dir" ] && [ ! -L "$marker" ] && [ -f "$marker" ] || fail "existing unowned target $dir"
+  [ "$(cat -- "$marker")" = "tar-and-archives-for-mere-mortals:v1" ] || fail "wrong ownership marker in $dir"
+fi
+# Refuse overlapping builders. A failed build leaves an unowned directory,
+# which must be inspected manually rather than removed on the next run.
+lock="$dir.build-lock"
+mkdir -- "$lock" 2>/dev/null || fail "build already active (or stale lock): $lock"
+trap 'rmdir -- "$lock"' EXIT
+trap 'exit 1' HUP INT TERM
+[ ! -e "$dir" ] || rm -rf -- "$dir"
 mkdir -p "$dir/notes" "$dir/logs" "$dir/data" "$dir/bin" "$dir/empty-dir"
 
 printf 'Corpus for the tar & archives lab.\nEvery file here was made by make-corpus.sh.\n' \
@@ -59,3 +85,6 @@ chmod 600 "$dir/secret.txt"
 ln -s notes "$dir/latest"
 
 echo "corpus built in $dir"
+
+# Mark only a completed fixture tree as safe for this builder to replace.
+printf '%s\n' 'tar-and-archives-for-mere-mortals:v1' > "$marker"
